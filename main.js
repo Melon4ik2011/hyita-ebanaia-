@@ -1,181 +1,147 @@
 import express from "express"
-//ytuty
+import fetch from "node-fetch"
+
 const app = express()
+app.use(express.json())
 
-app.use(express.json({
+// =========================
+// MEMORY (200 сообщений)
+// =========================
 
-    limit: "1mb"
+const memory = {}
+const MAX_MESSAGES = 200
 
-}))
+// =========================
+// ROOT
+// =========================
 
 app.get("/", (_, res) => {
-
     res.send("Jarvis AI server online")
-
 })
 
+// =========================
+// AI ENDPOINT
+// =========================
+
 app.post("/mc_ai", async (req, res) => {
-
     try {
-
         const {
-
             apiKey,
             model,
             prompt,
             player,
             message
-
         } = req.body
 
-        if (!apiKey) {
-
-            return res.json({
-
-                reply:
-                    "нет api key"
-
-            })
-
-        }
-
         if (!message) {
-
             return res.json({
-
-                reply:
-                    "пустое сообщение"
-
+                reply: "пустое сообщение"
             })
-
         }
+
+        // =========================
+        // INIT PLAYER MEMORY
+        // =========================
+
+        if (!memory[player]) {
+            memory[player] = []
+        }
+
+        // =========================
+        // ADD USER MESSAGE
+        // =========================
+
+        memory[player].push({
+            role: "user",
+            content: `${player}: ${message}`
+        })
+
+        // =========================
+        // TRIM MEMORY (200)
+        // =========================
+
+        if (memory[player].length > MAX_MESSAGES) {
+            memory[player] = memory[player].slice(-MAX_MESSAGES)
+        }
+
+        // =========================
+        // BUILD MESSAGES FOR AI
+        // =========================
+
+        const messages = [
+            {
+                role: "system",
+                content: prompt + "\nТы видишь чат игроков Minecraft. Отвечай естественно."
+            },
+            ...memory[player]
+        ]
+
+        // =========================
+        // REQUEST OPENROUTER
+        // =========================
 
         const response = await fetch(
-
             "https://openrouter.ai/api/v1/chat/completions",
-
             {
-
                 method: "POST",
-
                 headers: {
-
-                    "Authorization":
-                        `Bearer ${apiKey}`,
-
-                    "Content-Type":
-                        "application/json",
-
-                    "HTTP-Referer":
-                        "https://hyita-ebanaia-production.up.railway.app",
-
-                    "X-Title":
-                        "Jarvis Minecraft AI"
-
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://railway.app",
+                    "X-Title": "Minecraft Jarvis AI"
                 },
-
                 body: JSON.stringify({
-
-                    model:
-                        model ||
-                        "openai/gpt-4.1-mini",
-
-                    messages: [
-
-                        {
-
-                            role: "system",
-
-                            content:
-                                prompt ||
-                                "Ты ИИ помощник Minecraft"
-
-                        },
-
-                        {
-
-                            role: "user",
-
-                            content:
-                                `${player || "Player"}: ${message}`
-
-                        }
-
-                    ]
-
+                    model,
+                    messages
                 })
-
             }
-
         )
 
-        if (!response.ok) {
-
-            const errorText =
-                await response.text()
-
-            console.warn(
-                "OPENROUTER ERROR:",
-                errorText
-            )
-
-            return res.json({
-
-                reply:
-                    "ошибка openrouter"
-
-            })
-
-        }
-
-        const data =
-            await response.json()
-
-        console.warn(
-            "OPENROUTER RESPONSE:",
-            JSON.stringify(data, null, 2)
-        )
+        const data = await response.json()
 
         const reply =
-            data
-                ?.choices?.[0]
-                ?.message?.content
+            data?.choices?.[0]?.message?.content ||
+            "нет ответа"
+
+        // =========================
+        // SAVE AI RESPONSE
+        // =========================
+
+        memory[player].push({
+            role: "assistant",
+            content: `Jarvis: ${reply}`
+        })
+
+        // =========================
+        // TRIM AGAIN
+        // =========================
+
+        if (memory[player].length > MAX_MESSAGES) {
+            memory[player] = memory[player].slice(-MAX_MESSAGES)
+        }
+
+        // =========================
+        // RESPONSE TO MINECRAFT
+        // =========================
 
         res.json({
-
-            reply:
-                reply ||
-                "нет ответа"
-
+            reply
         })
 
     } catch (err) {
-
-        console.warn(
-            "RAILWAY ERROR:",
-            err
-        )
-
+        console.error(err)
         res.json({
-
-            reply:
-                "ошибка railway"
-
+            reply: "ошибка railway"
         })
-
     }
-
 })
 
-const PORT =
-    process.env.PORT || 3000
+// =========================
+// START SERVER
+// =========================
+
+const PORT = process.env.PORT || 3000
 
 app.listen(PORT, () => {
-
-    console.warn(
-
-        `Server running on ${PORT}`
-
-    )
-
+    console.log(`Server running on ${PORT}`)
 })
