@@ -51,7 +51,7 @@ Bearer `${apiKey}`,
 "application/json",
 
         "HTTP-Referer":
-"https://railway.app",
+"https://hyita-ebanaia-production.up.railway.app",
 
         "X-Title":
 "Jarvis Minecraft AI"
