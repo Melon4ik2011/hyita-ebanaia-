@@ -2,7 +2,7 @@
   "name": "jarvis-minecraft-ai",
   "version": "1.0.0",
   "type": "module",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
     "start": "node server.js"
   },
