@@ -1,9 +1,12 @@
 import express from "express"
-import fetch from "node-fetch"
 
 const app = express()
 
-app.use(express.json())
+app.use(express.json({
+
+    limit: "1mb"
+
+}))
 
 app.get("/", (_, res) => {
 
@@ -25,6 +28,17 @@ app.post("/mc_ai", async (req, res) => {
 
         } = req.body
 
+        if (!apiKey) {
+
+            return res.json({
+
+                reply:
+                    "нет api key"
+
+            })
+
+        }
+
         if (!message) {
 
             return res.json({
@@ -36,65 +50,96 @@ app.post("/mc_ai", async (req, res) => {
 
         }
 
-        const response =
-            await fetch(
-"https://openrouter.ai/api/v1/chat/completions",
-{
-    method: "POST",
+        const response = await fetch(
 
-    headers: {
-
-        "Authorization":
-Bearer `${apiKey}`,
-
-        "Content-Type":
-"application/json",
-
-        "HTTP-Referer":
-"https://hyita-ebanaia-production.up.railway.app",
-
-        "X-Title":
-"Jarvis Minecraft AI"
-
-    },
-
-    body: JSON.stringify({
-
-        model,
-
-        messages: [
+            "https://openrouter.ai/api/v1/chat/completions",
 
             {
 
-                role: "system",
+                method: "POST",
 
-                content:
-                    prompt
+                headers: {
 
-            },
+                    "Authorization":
+                        `Bearer ${apiKey}`,
 
-            {
+                    "Content-Type":
+                        "application/json",
 
-                role: "user",
+                    "HTTP-Referer":
+                        "https://hyita-ebanaia-production.up.railway.app",
 
-                content:
-`${player}: ${message}`
+                    "X-Title":
+                        "Jarvis Minecraft AI"
+
+                },
+
+                body: JSON.stringify({
+
+                    model:
+                        model ||
+                        "openai/gpt-4.1-mini",
+
+                    messages: [
+
+                        {
+
+                            role: "system",
+
+                            content:
+                                prompt ||
+                                "Ты ИИ помощник Minecraft"
+
+                        },
+
+                        {
+
+                            role: "user",
+
+                            content:
+                                `${player || "Player"}: ${message}`
+
+                        }
+
+                    ]
+
+                })
 
             }
 
-        ]
+        )
 
-    })
+        if (!response.ok) {
 
-})
+            const errorText =
+                await response.text()
+
+            console.warn(
+                "OPENROUTER ERROR:",
+                errorText
+            )
+
+            return res.json({
+
+                reply:
+                    "ошибка openrouter"
+
+            })
+
+        }
 
         const data =
             await response.json()
 
+        console.warn(
+            "OPENROUTER RESPONSE:",
+            JSON.stringify(data, null, 2)
+        )
+
         const reply =
             data
-            ?.choices?.[0]
-            ?.message?.content
+                ?.choices?.[0]
+                ?.message?.content
 
         res.json({
 
@@ -106,7 +151,10 @@ Bearer `${apiKey}`,
 
     } catch (err) {
 
-        console.error(err)
+        console.warn(
+            "RAILWAY ERROR:",
+            err
+        )
 
         res.json({
 
@@ -124,8 +172,10 @@ const PORT =
 
 app.listen(PORT, () => {
 
-    console.log(
-`Server running on ${PORT}`
+    console.warn(
+
+        `Server running on ${PORT}`
+
     )
 
 })
